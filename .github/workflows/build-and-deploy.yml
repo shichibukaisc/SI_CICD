@@ -85,7 +85,7 @@ jobs:
         image: ${{ steps.build-image.outputs.image }}
         tags: ${{ steps.build-image.outputs.tags }}
         registry: quay.io/quay-user
-        username: ${{ secrets.QUAYIO_REGISTRY_USER }}
+        username: ${{ secrets.QUAYIO_REGISTRY_USERNAME }}
         password: ${{ secrets.QUAYIO_REGISTRY_PASSWORD }}
     - name: Print image url
       run: echo "Image pushed to ${{ steps.push-to-quay.outputs.registry-paths }}"
