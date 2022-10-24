@@ -1,0 +1,104 @@
+name: Build and Deploy
+on:
+  push: {}
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to deploy. If left blank, will deploy the current code in the selected branch.'
+      target-environment:
+        description: 'The environment into which to deploy.'
+        required: true
+        type: choice
+        # customize these environment names to suit your application
+        # in this example, dev-staging is an environment for testing feature branches
+        default: dev-staging
+        options:
+        - dev-staging
+        - dev
+        - uat
+        - prod
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - id: fetch-tags
+        # https://github.com/actions/checkout/issues/290
+        run: git fetch --force --tags
+      - id: strategize
+        uses: GovAlta/si-cicd-deploy-strategist-action@main
+        with:
+          external-tag: ${{ github.event.inputs.tag }}
+          external-targeted-environments: ${{ github.event.inputs.target-environment }}
+          # Customize as needed to control automatic deployments
+          target-map: develop:dev;stable:uat;main:prod
+      # non-multi-stage Docker builds will need to add steps here
+      - id: build-image
+        if: ${{ ! steps.strategize.outputs.built-tag }}
+        uses: GovAlta/si-cicd-container-build-action@main
+        with:
+          ghcr-token: ${{secrets.GHCR_TOKEN}}
+      - id: publish
+        if: ${{ (! steps.strategize.outputs.built-tag) && steps.strategize.outputs.publish }}
+        uses: GovAlta/si-cicd-container-publish-action@main
+        with:
+          image-hash: ${{ steps.build-image.outputs.image-hash }}
+          publish-forced: ${{ steps.strategize.outputs.publish-forced }}
+    outputs:
+      target-environment: ${{ steps.strategize.outputs.target-environment }}
+      built-tag: ${{ steps.strategize.outputs.built-tag || steps.publish.outputs.built-tag }}
+  deploy:
+    if: ${{ needs.build-and-publish.outputs.target-environment }}
+    needs: build-and-publish
+    environment:
+      name: ${{ needs.build-and-publish.outputs.target-environment }}
+    runs-on: ubuntu-latest
+    steps:
+      # This block will take any secret whose name begins with ENV_
+      # and expose it as an environment variable. These can then be
+      # incorporated into a Kubernetes ConfigMap used by the application
+      # and thus made available in as environment variables when the
+      # application is running.
+      - id: set-env
+        env:
+          ENVS_FROM_SECRETS: ${{ toJSON(secrets) }}
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const data = JSON.parse(process.env.ENVS_FROM_SECRETS);
+            const prefix = "ENV_";
+            const exportedKeys = [];
+            for (let key in data) {
+              if (key.startsWith(prefix)) {
+                const newKey = key.substring(prefix.length);
+                console.log(`Exposing variable ${key} as ${newKey}`);
+                core.exportVariable(newKey, data[key]);
+                exportedKeys.push(newKey);
+              }
+            }
+            core.exportVariable("CI_ENV_KEYS", exportedKeys.join(" "));
+      # This is suitable for the on-premise OpenShift
+      # An equivalent step must be used for a different target Kubernetes implementation
+      - id: login-openshift
+        uses: redhat-actions/oc-login@v1
+        with:
+          openshift_server_url: ${{ secrets.OPENSHIFT_SERVER }}
+          openshift_token: ${{ secrets.OPENSHIFT_TOKEN }}
+          namespace: ${{ secrets.OPENSHIFT_NAMESPACE }}
+          insecure_skip_tls_verify: true
+      - id: deploy-simple
+        uses: GovAlta/si-cicd-simple-deploy-action@main
+        with:
+          built-tag: ${{ needs.build-and-publish.outputs.built-tag }}
+          target-environment: ${{ needs.build-and-publish.outputs.target-environment }}
+          application-host-suffix: ${{ secrets.OPENSHIFT_HOST_SUFFIX }}
+          environment-variable-names: ${{ env.CI_ENV_KEYS }}
+          # adjust as needed to point to the application's health endpoint, or any simple endpoint
+          application-liveness-probe-http-path: sithdfca/health/liveness
+          # adjust as needed to point to the application's readiness health endpoint
+          application-readiness-probe-http-path: sithdfca/health/readiness
+          # Ingress does not work for OpenShift 3, so use Routes instead
+          use-route: true
+      - id: deploy-summary
+        shell: bash
+        run: echo "::notice title=Deploy to ${{ needs.build-and-publish.outputs.target-environment }} Successful::Deployed ${{ needs.build-and-publish.outputs.built-tag }} to ${{ needs.build-and-publish.outputs.target-environment }}"

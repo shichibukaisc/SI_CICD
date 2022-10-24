@@ -1,0 +1,18 @@
+name: Dependabot auto-merge
+on: pull_request_target
+permissions:
+  checks: read
+  pull-requests: write
+  contents: write
+jobs:
+  dependabot-auto-merge:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    steps:
+      # can impose conditions on approval, see https://github.com/dependabot/fetch-metadata
+      - id: auto-merge
+        env:
+          GITHUB_TOKEN: ${{secrets.AUTO_MERGE_GITHUB_TOKEN}}
+        shell: bash
+        run: |
+          gh pr merge --auto --merge "${{github.event.pull_request.html_url}}"

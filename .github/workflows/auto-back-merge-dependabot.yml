@@ -1,0 +1,40 @@
+name: Auto back-merge Dependabot changes
+on:
+  pull_request_target:
+    types:
+      - closed
+permissions:
+  checks: read
+  pull-requests: write
+  contents: write
+jobs:
+  back-merge-dependabot:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
+    steps:
+      - uses: actions/checkout@v3
+      - id: create-and-auto-merge-backport-prs
+        env:
+          GITHUB_TOKEN: ${{secrets.AUTO_MERGE_GITHUB_TOKEN}}
+          # customize these branch names if required
+          DEPENDABOT_TARGET_BRANCH: main
+          POST_MERGE_BRANCHES: "stable develop"
+        shell: bash
+        run: |
+          git fetch --depth=1 origin $POST_MERGE_BRANCHES
+          headSha=$(git rev-parse $DEPENDABOT_TARGET_BRANCH)
+          for branch in $POST_MERGE_BRANCHES; do
+            baseSha=$(git rev-parse origin/$branch)
+            if [[ "$headSha" != "$baseSha" ]]; then
+              existing=$(gh pr list --head $DEPENDABOT_TARGET_BRANCH --base $branch | wc -l)
+              if [[ $existing -eq 0 ]]; then
+                newPrUrl="$(gh pr create --head $DEPENDABOT_TARGET_BRANCH --base $branch --title "Merge dependabot change(s) into $branch" --body "Merging dependabot change already merged in $DEPENDABOT_TARGET_BRANCH into $branch: ${{ github.event.pull_request.title }}")"
+                gh pr merge --auto --merge "$newPrUrl"
+                echo "created new pr to merge $DEPENDABOT_TARGET_BRANCH into $branch: $newPrUrl"
+              else
+                echo "pr to merge $DEPENDABOT_TARGET_BRANCH into $branch already exists"
+              fi
+            else
+              echo "No difference between branches $DEPENDABOT_TARGET_BRANCH and $branch - already merged"
+            fi
+          done

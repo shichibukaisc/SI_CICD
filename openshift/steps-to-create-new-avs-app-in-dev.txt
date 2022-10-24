@@ -1,0 +1,33 @@
+# 0) Create access token to use in step X below.  See doc for creating access tokens in Gitlab
+# 1) Login to Openshift. Enter your credentials when prompted
+set oc-proj-name=sa-si-ras
+set oc-proj-env=dev
+set app-name=sbras
+set oc-proj=%oc-proj-name%-%oc-proj-env%
+set full-app-name=%app-name%-%oc-proj-env%
+set read-repo-user=jj.escott
+set read-repo-pass=XwtxGQgEJdzHzUGypJJT
+set read-repo-name=%full-app-name%-read-repo
+set repo-location=https://gitlab.gov.ab.ca/int-svc-api/SBRAS.git
+set host-name=%full-app-name%.os99.gov.ab.ca
+oc login https://console.os99.gov.ab.ca:8443
+# 2) change to the dev project
+oc project %oc-proj%
+# 3) create the access token secret used to pull the repo
+oc create secret generic %read-repo-name% --from-literal=username=%read-repo-user% --from-literal=password=%read-repo-pass% --type=kubernetes.io/basic-auth
+# 4) link the access token with the builder
+oc secrets link builder %read-repo-name%
+# 5) once we've changed to the correct project, we can now create our new application
+oc new-app %repo-location%#develop --strategy=docker --source-secret=%read-repo-name% --name %app-name%
+# 6) add environment variables to the deployment configuration
+oc set env dc/%app-name% SPRING_PROFILES_ACTIVE=%oc-proj-env%
+# 7) create a route to expose the service - This is used when the applications are running on secure port.  If not secure, use <mode> = edge
+oc create route edge --service=%app-name% --hostname=%host-name%
+# 8) Optional - create webhook in Openshift to trigger builds when pushes are done in gitlab.
+- Create secret in Openshift called <app-name>-<env>-webhook-secret (ie sbras-dev-webhook-secret).  Copy the secret somewhere to use in gitlab
+- Edit the build in openshift.  View the advanced options.  In the triggers section, Add a new Gitlab webhook and select the secret we just created.
+- In Gitlab, go to the project -> settings -> webhooks.
+		- create a new webhook on the push event
+		- disable SSL verification
+		- the url is https://console.os99.gov.ab.ca:8443/apis/build.openshift.io/v1/namespaces/avs-dev/buildconfigs/email/webhooks/373c6525b47df2af/gitlab
+				- enter the value from openshift for the secret in both the url and the secret field

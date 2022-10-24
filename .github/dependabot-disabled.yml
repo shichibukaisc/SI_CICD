@@ -1,0 +1,32 @@
+version: 2
+registries:
+  github-docker:
+    type: docker-registry
+    url: ghcr.io
+    username: ${{ github.actor }}
+    password: ${{ secrets.GHCR_TOKEN }}
+updates:
+  # 1. if you are not doing fully automatic updates, you can change the
+  #    target-branch parameters or remove them to target your default branch
+  # 2. remove the items that don't make sense, and/or introduce new ones
+  #    https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file#package-ecosystem
+  # 3. Adjust the directory parameters if your code contains sub-directories
+  #    You can also define multiple items with the same ecosystem and different
+  #    directories for sub-projects
+  - package-ecosystem: "docker"
+    target-branch: "main"
+    directory: "/"
+    registries: 
+      - github-docker
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "maven"
+    target-branch: "main"
+    directory: "/"
+    schedule:
+      interval: "daily"
+  - package-ecosystem: "npm"
+    target-branch: "main"
+    directory: "/"
+    schedule:
+      interval: "daily"

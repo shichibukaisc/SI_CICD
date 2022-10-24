@@ -1,0 +1,23 @@
+##Steps to create an access token in GitLab for OpenShift##
+0) If you have a non-human service account you can login to (ie machineuser) login using that.  It is a best practice to not tie the builder access token to an actual user account
+1) From your project in GitLab, navigate to Settings -> Access Tokens
+2) Name the token in the following convention: openshift-read-repo-<application_Acronym> for example: openshift-read-repo-sbras
+3) Leave the expiry blank
+4) select the read_repository Scope
+5) Click create project access token
+6) copy the token down!  If you don't, you'll have to delete and recreate the access token
+
+##Using the access token in Openshift##
+1) Log into openshift
+2) change to the correct project
+3) Click on Resources -> Secrets
+4) Click on Create Secret
+5) Use the following settings
+	Secret Type : Source Secret
+	Secret Name : same as access token name
+	Authentication Type : Basic Authentication
+	Username : the username you created the access token under (ie machineuser or firstname.lastname if you logged into Gitlab using ADS credentials)
+	Password or Token : the token value copied earlier
+	Check off : Link secret to a service account
+	Service Account : builder
+6) click create
