@@ -63,9 +63,10 @@ jobs:
       #Run Test
       - name: Run Test
         run: mvn -B test
-  Build:
+  Build-Publish:
     name: Build and Publish Image
     runs-on: ubuntu-latest
+    needs: Execute-Test
     steps:
     - uses: actions/checkout@v1
     - name: Build Image
