@@ -10,7 +10,7 @@ RUN mvn clean package
 # FROM openjdk:8-jdk-alpine
 FROM openjdk:17-jdk-alpine
 RUN addgroup -S spring && adduser -S spring -G spring
-ARG JAR_NAME=sithdfca-0.5.jar 
+ARG JAR_NAME=SITHDFCA-0.5.jar 
 ARG DEPLOY_PATH=/deploy/data/
 ENV ENTRY_POINT=${DEPLOY_PATH}${JAR_NAME}
 RUN mkdir ${DEPLOY_PATH} -p && chown -R spring:spring /deploy
