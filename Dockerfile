@@ -1,6 +1,6 @@
 # FROM maven:3.6.3-jdk--slim AS MAVEN_TOOL_CHAIN
 # Build Container Reference is from https://hub.docker.com/_/maven
-FROM maven:3.8.4-openjdk-11-slim AS MAVEN_TOOL_CHAIN
+FROM maven:3.8.4-openjdk-17-slim AS MAVEN_TOOL_CHAIN
 COPY pom.xml /tmp/
 COPY src /tmp/src/
 WORKDIR /tmp/

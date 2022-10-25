@@ -15,7 +15,7 @@
 	<description>Service Integration Town Hall Demo Full Cycle App</description>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<java.version>11</java.version>
+		<java.version>17</java.version>
 		<maven-jar-plugin.version>3.1.1</maven-jar-plugin.version>
 		<expose.port>8080</expose.port>
 		<repository.name>spring-boot-restful-api-skeleton</repository.name>
