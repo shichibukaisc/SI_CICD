@@ -82,6 +82,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: Execute-Test
     environment: development
+    outputs:
+        ROUTE: ${{ steps.deploy-and-expose.outputs.route }}
+        SELECTOR: ${{ steps.deploy-and-expose.outputs.selector }}
     steps:
     - uses: actions/checkout@v2
     - name: Build Image
@@ -105,6 +108,18 @@ jobs:
         password: ${{ env.REGISTRY_PASSWORD }}
     - name: Print image url
       run: echo "Image pushed to ${{ steps.push-to-registry.outputs.registry-paths }}"
+    # https://github.com/redhat-actions/oc-login#readme
+    - name: Log in to OpenShift 
+      uses: redhat-actions/oc-login@v1
+      with:
+        openshift_server_url: ${{ env.OPENSHIFT_SERVER }}
+        openshift_token: ${{ env.OPENSHIFT_TOKEN }}
+        insecure_skip_tls_verify: true
+        namespace: ${{ env.OPENSHIFT_NAMESPACE }}
+
+    # Run a script to create a new app or update the current one with the previously pushed container image
+    - run: | 
+         "${GITHUB_WORKSPACE}/.github/script.sh" ${{ env.APP_NAME }} ${{ env.IMAGE_REGISTRY }}/${{ steps.build_image.outputs.image }}:${{ github.sha }} ${{ env.OPENSHIFT_NAMESPACE }}
   #  outputs:
   #    #target-environment: ${{ steps.strategize.outputs.target-environment }}
   #    #built-tag: ${{ steps.strategize.outputs.built-tag || steps.publish.outputs.built-tag }}
